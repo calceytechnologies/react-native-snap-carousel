@@ -132,6 +132,8 @@ export default class Carousel extends Component {
         this._renderItem = this._renderItem.bind(this);
         this._onSnap = this._onSnap.bind(this);
 
+        this._onScrollEndThrottled = this._debounce(this._onScrollEndTh, 60, false);
+
         this._onLayout = this._onLayout.bind(this);
         this._onScroll = this._onScroll.bind(this);
         this._onScrollBeginDrag = props.enableSnap ? this._onScrollBeginDrag.bind(this) : undefined;
@@ -765,7 +767,65 @@ export default class Carousel extends Component {
         }
     }
 
+    _debounce(func, wait, immediate) {
+        var timeout;
+      
+        return function executedFunction() {
+          var context = this;
+          var args = arguments;
+              
+          var later = function() {
+            timeout = null;
+            if (!immediate) func.apply(context, args);
+          };
+      
+          var callNow = immediate && !timeout;
+          
+          clearTimeout(timeout);
+      
+          timeout = setTimeout(later, wait);
+          
+          if (callNow) func.apply(context, args);
+        };
+      };
+
+     _throttle(func, wait, options) {
+        var context, args, result;
+        var timeout = null;
+        var previous = 0;
+        if (!options) options = {};
+        var later = function() {
+          previous = options.leading === false ? 0 : Date.now();
+          timeout = null;
+          result = func.apply(context, args);
+          if (!timeout) context = args = null;
+        };
+        return function() {
+          var now = Date.now();
+          if (!previous && options.leading === false) previous = now;
+          var remaining = wait - (now - previous);
+          context = this;
+          args = arguments;
+          if (remaining <= 0 || remaining > wait) {
+            if (timeout) {
+              clearTimeout(timeout);
+              timeout = null;
+            }
+            previous = now;
+            result = func.apply(context, args);
+            if (!timeout) context = args = null;
+          } else if (!timeout && options.trailing !== false) {
+            timeout = setTimeout(later, remaining);
+          }
+          return result;
+        };
+      };
+
     _onScroll (event) {
+        this._onScrollTh(event);
+    }
+
+    _onScrollTh (event) {
         const { callbackOffsetMargin, enableMomentum, onScroll } = this.props;
 
         const scrollOffset = event ? this._getScrollOffset(event) : this._currentContentOffset;
@@ -907,7 +967,12 @@ export default class Carousel extends Component {
         }
     }
 
-    _onScrollEnd (event) {
+    _onScrollEnd () {
+        this._onScrollEndThrottled();
+    }
+
+    _onScrollEndTh () {
+        console.log('onscrollend')
         const { autoplayDelay, enableSnap } = this.props;
 
         if (this._ignoreNextMomentum) {
